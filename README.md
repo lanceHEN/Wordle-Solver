@@ -1,1 +1,1 @@
-# World-Solver
+# Wordle-Solver
