@@ -7,21 +7,17 @@ import torch.nn as nn
 # word embeddings obtained by taking sum of letter embeddings (not counting feedback)
 class PolicyHead(nn.Module):
     
-    def __init__(self, hidden_dim, word_embed_dim, word_embeddings, device=torch.device("cpu")):
+    def __init__(self, hidden_dim, word_embed_dim, device=torch.device("cpu")):
         super().__init__()
         self.device = device
         self.query_layer = nn.Linear(hidden_dim, word_embed_dim)
-        
-        # Freeze word embeddings for scoring
-        self.word_embeddings = word_embeddings.to(device)  # shape: [vocab_size, word_embed_dim]
-        self.word_embeddings.requires_grad_(False)
 
-    def forward(self, h, valid_indices):  
+    def forward(self, h, valid_indices, word_embeddings):  
         # h: [batch_size, hidden_dim]
         query = self.query_layer(h)  # [batch_size, word_embed_dim]
 
         # Get candidate embeddings
-        candidate_embeds = self.word_embeddings[valid_indices]  # [num_valid, word_embed_dim]
+        candidate_embeds = word_embeddings[valid_indices]  # [num_valid, word_embed_dim]
 
         # Compute scores via dot product
         scores = query @ candidate_embeds.T  # [batch_size, num_valid]
