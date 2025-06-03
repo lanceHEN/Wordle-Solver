@@ -1,25 +1,29 @@
 import torch
 import torch.nn as nn
 
-# given a 3d tensor representing the game grid (word and feedback) of shape [max_guesses, word_length, embed_dim]
-# and a 1d tensor representing the turn and number of candidates remaining
-# produces a single vector with the given output dimension, output_dim
+# given batched 3d tensors representing the game grid (word and feedback) of shape [B, max_guesses, word_length, embed_dim]
+# and a batched 1d tensor representing the turn and number of candidates remaining of shape [B, 2],
+# produces latent vector representations (for each batch) with the given output dimension, output_dim
 # this is a simple MLP (1 hidden layer) in practice, taking in the flatten grid concatenated with the 1d additional info tensor
 class SharedEncoder(nn.Module):
     
-    def __init__(self, embed_dim, hidden_dim=256, output_dim=128, max_guesses=6, word_length=5):
+    # initializes a SharedEncoder with the given embedding dimension, hidden dimension, and output dimension
+    def __init__(self, embed_dim, hidden_dim=256, output_dim=128):
         super().__init__()
-        self.input_dim = max_guesses * word_length * embed_dim + 2
+        self.input_dim = 6 * 5 * embed_dim + 2
         
-        self.encoder = nn.Sequential(
+        self.encoder = nn.Sequential( # Feedforward
             nn.Linear(self.input_dim, self.hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, output_dim),
             nn.ReLU()
         )
-        
+    
+    # given batched 3d tensors representing the game grid (word and feedback) of shape [B, max_guesses, word_length, embed_dim]
+    # and a batched 1d tensor representing the turn and number of candidates remaining of shape [B, 2],
+    # produces latent vector representations (for each batch) with the given output dimension, output_dim
     def forward(self, grid, meta):
-        # grid: [max_guesses, word_length, embed_dim] -> flattened to max_guesses * word_length * embed_dim
-        flat_grid = grid.view(-1)
-        x = torch.cat([flat_grid, meta], dim=-1) # shape max_guesses * word_length * embed_dim + 2
-        return self.encoder(x)
+        B = grid.shape[0]
+        flat_grid = grid.view(B, -1)  # [B, 6 * 5 * embed_dim]
+        x = torch.cat([flat_grid, meta], dim=-1)  # [B, input_dim]
+        return self.encoder(x)  # [B, output_dim]

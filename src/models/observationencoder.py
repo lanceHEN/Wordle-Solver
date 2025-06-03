@@ -4,10 +4,12 @@ import torch.nn.functional as F
 
 # given a particular observation, produces numerical representations friendly for input to a neural network
 # in particular, produces:
-# 1. a [6 x 5 x letter_embed_dim + 3] tensor, storing letter and feedback data for every letter in the game
-# 2. a [2] vector storing the current term and number of candidate words remaining (divided by total vocab size of word (not guesses) list)
+# 1. a [6 x 5 x letter_embed_dim + 3] tensor, storing letter (embeddings from the given LetterEncoder)
+# and feedback (one hot) data for every position in the game (filled or unfilled)
+# 2. a [2] vector storing the current turn and number of candidate words remaining (divided by total vocab size of word (not guesses) list)
 class ObservationEncoder(nn.Module):
     
+    # Initializes an ObservationEncoder with the given LetterEncoder, vocab size, and device
     def __init__(self, letter_encoder, vocab_size=14855, device=torch.device("cpu")):
         super().__init__()
         self.vocab_size = vocab_size
@@ -22,23 +24,28 @@ class ObservationEncoder(nn.Module):
         # final per-cell embedding size = letter + feedback dim
         self.embed_dim = self.letter_encoder.letter_embed_dim + self.feedback_dim
 
+    # given a particular observation, produces numerical representations friendly for input to a neural network
+    # in particular, produces:
+    # 1. a [6 x 5 x letter_embed_dim + 3] tensor, storing letter (embeddings from the given LetterEncoder)
+    # and feedback (one hot) data for every position in the game (filled or unfilled)
+    # 2. a [2] vector storing the current turn and number of candidate words remaining (divided by total vocab size of word (not guesses) list)
     # made in part with generative AI
     def forward(self, obs):
-        # guesses
-        encoded_grid = torch.zeros(self.max_guesses, self.word_length, self.embed_dim, device=self.device)
-
-        for turn, (word, feedback) in enumerate(obs["guesses"]):
-            for i, (letter, fb_str) in enumerate(zip(word, feedback)):
+        # guesses - [6, 5, D]
+        encoded_grid = torch.zeros(self.max_guesses, self.word_length, self.embed_dim, device=self.device) # pad unfilled with zeros
+ 
+        for turn, (word, feedback) in enumerate(obs["guesses"]): # over each guess
+            for i, (letter, fb_str) in enumerate(zip(word, feedback)): # over each letter
                 fb_idx = {"gray": 0, "yellow": 1, "green": 2}[fb_str]
 
-                letter_vec = self.letter_encoder(letter)
-                fb_one_hot = F.one_hot(torch.tensor(fb_idx, device=self.device), num_classes=3).float()
+                letter_vec = self.letter_encoder(letter) # letter embedding
+                fb_one_hot = F.one_hot(torch.tensor(fb_idx, device=self.device), num_classes=3).float() # one hot fb embedding
 
                 encoded_grid[turn, i] = torch.cat([letter_vec, fb_one_hot])
 
         # additional features
         turn_scalar = obs["turn"]
-        remaining_scalar = len(obs["valid_indices"]) / self.vocab_size
+        remaining_scalar = len(obs["valid_indices"]) / self.vocab_size # divide by vocab size for scalability
 
         encoded_meta = torch.tensor(
             [turn_scalar, remaining_scalar],

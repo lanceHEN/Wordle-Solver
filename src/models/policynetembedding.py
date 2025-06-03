@@ -1,25 +1,34 @@
 import torch
 import torch.nn as nn
 
-# given  a latent vector from the shared encoder, produced a predicted word embedding to compare with all word embeddings and produce a prob distribution
-# this was chosen over a simpler output head producing logits over every word
-# embeddings allow for a more finer-grained comparison between words
-# word embeddings obtained by taking sum of letter embeddings (not counting feedback)
+# given batched latent vectors from the shared encoder, produces predicted word embeddings, which are then
+# compared with all word embeddings for all guess words (via dot prod.) to produce logits (masked for valid word indices),
+# which one can softmax over to get prob. dists.
+# this was chosen over a simpler output head immediately producing logits over every word because embeddings allow for a finer-grained comparison between words
 class PolicyHead(nn.Module):
     
+    # Initializes a PolicyHead with the given input latent dimension (should be same as SharedEncoder output), word embedding dimension, and device
     def __init__(self, hidden_dim, word_embed_dim, device=torch.device("cpu")):
         super().__init__()
         self.device = device
-        self.query_layer = nn.Linear(hidden_dim, word_embed_dim)
+        self.linear = nn.Linear(hidden_dim, word_embed_dim) # linear
 
-    def forward(self, h, valid_indices, word_embeddings):  
-        # h: [batch_size, hidden_dim]
-        query = self.query_layer(h)  # [batch_size, word_embed_dim]
+    # given batched latent vectors from the shared encoder, produces predicted word embeddings, which are then
+    # compared with all word embeddings for all guess words (via dot prod.) to produce logits (masked for valid word indices),
+    # which one can softmax over to get prob. dists.
+    # this was chosen over a simpler output head immediately producing logits over every word because embeddings allow for a finer-grained comparison between words
+    def forward(self, h, valid_indices_batch, word_embeddings):
 
-        # Get candidate embeddings
-        candidate_embeds = word_embeddings[valid_indices]  # [num_valid, word_embed_dim]
+        # h: [B, hidden_dim]
+        query = self.linear(h)  # [B, word_embed_dim]
 
-        # Compute scores via dot product
-        scores = query @ candidate_embeds.T  # [batch_size, num_valid]
+        # compute all scores: [B, vocab_size]
+        scores = query @ word_embeddings.T  # [B, vocab_size]
 
-        return scores  # softmax to get prob distribution
+        # mask out invalid logits (set to -inf)
+        mask = torch.full_like(scores, float('-inf'))  # [B, vocab_size]
+        for i, valid_idx in enumerate(valid_indices_batch):
+            mask[i, valid_idx] = 0.0  # keep only valid words
+
+        masked_logits = scores + mask  # [B, vocab_size]
+        return masked_logits
