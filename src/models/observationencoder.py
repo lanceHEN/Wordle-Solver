@@ -32,7 +32,7 @@ class ObservationEncoder(nn.Module):
     # made in part with generative AI
     def forward(self, obs):
         # guesses - [6, 5, D]
-        encoded_grid = torch.zeros(self.max_guesses, self.word_length, self.embed_dim, device=self.device) # pad unfilled with zeros
+        encoded_grid = torch.zeros(6, 5, self.embed_dim, device=self.device) # pad unfilled with zeros
  
         for turn, (word, feedback) in enumerate(obs["guesses"]): # over each guess
             for i, (letter, fb_str) in enumerate(zip(word, feedback)): # over each letter

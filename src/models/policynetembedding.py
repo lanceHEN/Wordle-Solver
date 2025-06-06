@@ -8,7 +8,7 @@ import torch.nn as nn
 class PolicyHead(nn.Module):
     
     # Initializes a PolicyHead with the given input latent dimension (should be same as SharedEncoder output), word embedding dimension, and device
-    def __init__(self, hidden_dim, word_embed_dim, device=torch.device("cpu")):
+    def __init__(self, hidden_dim=128, word_embed_dim=16, device=torch.device("cpu")):
         super().__init__()
         self.device = device
         self.linear = nn.Linear(hidden_dim, word_embed_dim) # linear

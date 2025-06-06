@@ -8,15 +8,15 @@ import torch.nn as nn
 class SharedEncoder(nn.Module):
     
     # initializes a SharedEncoder with the given embedding dimension, hidden dimension, and output dimension
-    def __init__(self, embed_dim, hidden_dim=256, output_dim=128):
+    def __init__(self, embed_dim=19, hidden_dim=256, output_dim=128):
         super().__init__()
         self.input_dim = 6 * 5 * embed_dim + 2
         
         self.encoder = nn.Sequential( # Feedforward
-            nn.Linear(self.input_dim, self.hidden_dim),
-            nn.ReLU(),
+            nn.Linear(self.input_dim, hidden_dim),
+            nn.ReLU(inplace=False),
             nn.Linear(hidden_dim, output_dim),
-            nn.ReLU()
+            nn.ReLU(inplace=False)
         )
     
     # given batched 3d tensors representing the game grid (word and feedback) of shape [B, max_guesses, word_length, embed_dim]
