@@ -1,7 +1,7 @@
 import random
 import copy
 from typing import List, Tuple, Optional
-from wordle_game import WordleGame # referring WordleGame class
+from envs.WordleGame import WordleGame # referring WordleGame class
 
 class WordleEnv:
     ''' wraps around WordleGame '''
@@ -50,7 +50,7 @@ class WordleEnv:
         
         # reward
         if self.game.is_game_over():
-            if self.game.is_game_won():
+            if self.game.is_won:
                 reward = 0  # guess is correst
             else:
                 reward = -10  # game is lost
@@ -88,7 +88,7 @@ class WordleEnv:
         return {
             'feedback': self.game.get_feedback(),
             'turn_number': self.game.num_guesses,
-            'candidate_indices': candidate_indices }
+            'valid_indices': candidate_indices }
     
     # addt'l to methods, called prev
     def _filter_cands(self, guess: str, result: List[str]):

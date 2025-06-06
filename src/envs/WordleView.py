@@ -1,5 +1,5 @@
-from WordleGame import WordleGame
-from LoadList import load_word_list
+from envs.WordleGame import WordleGame
+from envs.LoadList import load_word_list
 import pygame
 import sys
 

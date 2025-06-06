@@ -17,18 +17,20 @@ class PolicyHead(nn.Module):
     # compared with all word embeddings for all guess words (via dot prod.) to produce logits (masked for valid word indices),
     # which one can softmax over to get prob. dists.
     # this was chosen over a simpler output head immediately producing logits over every word because embeddings allow for a finer-grained comparison between words
+    # made in part with generative AI
     def forward(self, h, valid_indices_batch, word_embeddings):
+        query = self.linear(h)
+        query = query.clone().detach().requires_grad_(True)  # break all ties, re-enable grad
 
-        # h: [B, hidden_dim]
-        query = self.linear(h)  # [B, word_embed_dim]
+        word_embeddings_T = word_embeddings.transpose(0, 1).contiguous().clone().detach()
+        scores = (query @ word_embeddings_T)
 
-        # compute all scores: [B, vocab_size]
-        scores = query @ word_embeddings.T  # [B, vocab_size]
-
-        # mask out invalid logits (set to -inf)
-        mask = torch.full_like(scores, float('-inf'))  # [B, vocab_size]
+        batch_size, vocab_size = scores.shape
+        mask = torch.ones(batch_size, vocab_size, dtype=torch.bool, device=scores.device)
         for i, valid_idx in enumerate(valid_indices_batch):
-            mask[i, valid_idx] = 0.0  # keep only valid words
+            mask[i, valid_idx] = False
 
-        masked_logits = scores + mask  # [B, vocab_size]
+        mask_float = torch.where(mask, float('-inf'), 0.0)
+        masked_logits = scores + mask_float
+
         return masked_logits

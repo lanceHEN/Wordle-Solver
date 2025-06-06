@@ -32,19 +32,32 @@ class ObservationEncoder(nn.Module):
     # made in part with generative AI
     def forward(self, obs):
         # guesses - [6, 5, D]
-        encoded_grid = torch.zeros(6, 5, self.embed_dim, device=self.device) # pad unfilled with zeros
+        encoded_grid = []  # build as a list first to avoid in-place ops
  
-        for turn, (word, feedback) in enumerate(obs["guesses"]): # over each guess
+        for turn, (word, feedback) in enumerate(obs["feedback"]): # over each guess
+            row = []
             for i, (letter, fb_str) in enumerate(zip(word, feedback)): # over each letter
                 fb_idx = {"gray": 0, "yellow": 1, "green": 2}[fb_str]
 
                 letter_vec = self.letter_encoder(letter) # letter embedding
                 fb_one_hot = F.one_hot(torch.tensor(fb_idx, device=self.device), num_classes=3).float() # one hot fb embedding
 
-                encoded_grid[turn, i] = torch.cat([letter_vec, fb_one_hot])
+                row.append(torch.cat([letter_vec, fb_one_hot]))  # [embed_dim]
+                
+            # Pad the row to length 5 if necessary
+            while len(row) < 5:
+                row.append(torch.zeros(self.embed_dim, device=self.device))
+
+            encoded_grid.append(torch.stack(row))  # [5, D]
+            
+        # Pad to 6 guesses if fewer
+        while len(encoded_grid) < 6:
+            encoded_grid.append(torch.zeros(5, self.embed_dim, device=self.device))
+
+        encoded_grid = torch.stack(encoded_grid)  # [6, 5, D]
 
         # additional features
-        turn_scalar = obs["turn"]
+        turn_scalar = obs["turn_number"]
         remaining_scalar = len(obs["valid_indices"]) / self.vocab_size # divide by vocab size for scalability
 
         encoded_meta = torch.tensor(
